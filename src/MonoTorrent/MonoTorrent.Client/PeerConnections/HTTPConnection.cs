@@ -69,7 +69,7 @@ namespace MonoTorrent.Client.Connections
                 this.BytesTransferred = bytes;
                 base.Complete();
             }
-		}
+        }
 
         #region Member Variables
 
@@ -150,7 +150,7 @@ namespace MonoTorrent.Client.Connections
                 throw new ArgumentException("Scheme is not http or https");
 
             this.uri = uri;
-            
+
             connectionTimeout = TimeSpan.FromSeconds(10);
             getResponseCallback = ClientEngine.MainLoop.Wrap(GotResponse);
             receivedChunkCallback = ClientEngine.MainLoop.Wrap(ReceivedChunk);
@@ -220,9 +220,9 @@ namespace MonoTorrent.Client.Connections
                 {
                     sendResult.Complete(count);
                 }
-                else if (bundle.TrueForAll(delegate(PeerMessage m) { return m is RequestMessage; }))
+                else if (bundle.TrueForAll(delegate (PeerMessage m) { return m is RequestMessage; }))
                 {
-                    requestMessages.AddRange(bundle.ConvertAll<RequestMessage>(delegate(PeerMessage m) { return (RequestMessage)m; }));
+                    requestMessages.AddRange(bundle.ConvertAll<RequestMessage>(delegate (PeerMessage m) { return (RequestMessage)m; }));
                     // The RequestMessages are always sequential
                     RequestMessage start = (RequestMessage)bundle[0];
                     RequestMessage end = (RequestMessage)bundle[bundle.Count - 1];
@@ -261,7 +261,7 @@ namespace MonoTorrent.Client.Connections
                     c = sendBufferCount;
                 }
                 List<PeerMessage> messages = new List<PeerMessage>();
-                for (int i = off; i < off + c; )
+                for (int i = off; i < off + c;)
                 {
                     PeerMessage message = PeerMessage.DecodeMessage(buffer, i, c + off - i, null);
                     messages.Add(message);
@@ -393,7 +393,7 @@ namespace MonoTorrent.Client.Connections
                 {
                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create(u);
                     AddRange(request, startOffset, endOffset - 1);
-                    webRequests.Enqueue(new KeyValuePair<WebRequest,int>(request, (int)(endOffset - startOffset)));
+                    webRequests.Enqueue(new KeyValuePair<WebRequest, int>(request, (int)(endOffset - startOffset)));
                     endOffset = 0;
                 }
             }
@@ -473,7 +473,8 @@ namespace MonoTorrent.Client.Connections
         void BeginGetResponse(WebRequest request, AsyncCallback callback, object state)
         {
             IAsyncResult result = request.BeginGetResponse(callback, state);
-            ClientEngine.MainLoop.QueueTimeout(ConnectionTimeout, delegate {
+            ClientEngine.MainLoop.QueueTimeout(ConnectionTimeout, delegate
+            {
                 if (!result.IsCompleted)
                     request.Abort();
                 return false;
