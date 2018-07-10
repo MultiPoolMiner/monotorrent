@@ -7,6 +7,7 @@ namespace MonoTorrent.Common
 {
     public class InfoHash : IEquatable <InfoHash>
     {
+        public const int HASH_SIZE = 20;
         static Dictionary<char, byte> base32DecodeTable;
 
         static InfoHash()
@@ -27,8 +28,8 @@ namespace MonoTorrent.Common
         public InfoHash(byte[] infoHash)
         {
             Check.InfoHash(infoHash);
-            if (infoHash.Length != 20)
-                throw new ArgumentException("Infohash must be exactly 20 bytes long");
+            if (infoHash.Length != InfoHash.HASH_SIZE)
+                throw new ArgumentException("Infohash must be exactly " + InfoHash.HASH_SIZE + " bytes long");
             hash = (byte[])infoHash.Clone();
         }
 
@@ -39,7 +40,7 @@ namespace MonoTorrent.Common
 
         public bool Equals(byte[] other)
         {
-            return other == null || other.Length != 20 ? false : Toolbox.ByteMatch(Hash, other);
+            return other == null || other.Length != InfoHash.HASH_SIZE ? false : Toolbox.ByteMatch(Hash, other);
         }
 
         public bool Equals(InfoHash other)
@@ -61,7 +62,7 @@ namespace MonoTorrent.Common
 
         public string ToHex()
         {
-            StringBuilder sb = new StringBuilder(40);
+            StringBuilder sb = new StringBuilder(InfoHash.HASH_SIZE * 2);
             for (int i = 0; i < hash.Length; i++)
             {
                 string hex = hash[i].ToString("X");
@@ -79,7 +80,7 @@ namespace MonoTorrent.Common
 
         public string UrlEncode()
         {
-            return UriHelper.UrlEncode(Hash);
+            return UriHelper.UrlEncode(Hash).Replace("+", "%20");
         }
 
         public static bool operator ==(InfoHash left, InfoHash right)
@@ -98,6 +99,8 @@ namespace MonoTorrent.Common
 
         public static InfoHash FromBase32(string infoHash)
         {
+            System.Diagnostics.Debug.Assert(HASH_SIZE == 20, "FromBase32 requires that HASH_SIZE be the torrent default of 20 bytes long");
+
             Check.InfoHash (infoHash);
             if (infoHash.Length != 32)
                 throw new ArgumentException("Infohash must be a base32 encoded 32 character string");
@@ -125,10 +128,10 @@ namespace MonoTorrent.Common
         public static InfoHash FromHex(string infoHash)
         {
             Check.InfoHash (infoHash);
-            if (infoHash.Length != 40)
-                throw new ArgumentException("Infohash must be 40 characters long");
+            if (infoHash.Length != InfoHash.HASH_SIZE*2)
+                throw new ArgumentException("Infohash must be " + InfoHash.HASH_SIZE*2 + " characters long");
             
-            byte[] hash = new byte[20];
+            byte[] hash = new byte[InfoHash.HASH_SIZE];
             for (int i = 0; i < hash.Length; i++)
                 hash[i] = byte.Parse(infoHash.Substring(i * 2, 2), System.Globalization.NumberStyles.HexNumber);
 
@@ -137,6 +140,8 @@ namespace MonoTorrent.Common
 
         public static InfoHash FromMagnetLink(string magnetLink)
         {
+            System.Diagnostics.Debug.Assert(HASH_SIZE == 20, "FromMagnetLink requires that HASH_SIZE be the torrent default of 20 bytes long");
+
             Check.MagnetLink(magnetLink);
             if (!magnetLink.StartsWith("magnet:?"))
                 throw new ArgumentException("Invalid magnet link format");
@@ -155,7 +160,7 @@ namespace MonoTorrent.Common
                 case 32:
                     return FromBase32(magnetLink.Substring(hashStart, 32));
                 case 40:
-                    return FromHex(magnetLink.Substring(hashStart, 40));
+                    return FromHex(magnetLink.Substring(hashStart, InfoHash.HASH_SIZE*2));
                 default:
                     throw new ArgumentException("Infohash must be base32 or hex encoded.");
             }

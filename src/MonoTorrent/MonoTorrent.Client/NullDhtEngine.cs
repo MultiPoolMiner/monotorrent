@@ -26,6 +26,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+#if !DISABLE_DHT
 
 using System;
 using System.Collections.Generic;
@@ -100,3 +101,4 @@ namespace MonoTorrent.Client
         }
     }
 }
+#endif

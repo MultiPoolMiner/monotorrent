@@ -92,10 +92,10 @@ namespace MonoTorrent.Client
             set { this.isSeeder = value; }
         }
 
-        internal int FailedConnectionAttempts
+        public int FailedConnectionAttempts
         {
             get { return this.failedConnectionAttempts; }
-            set { this.failedConnectionAttempts = value; }
+            internal set { this.failedConnectionAttempts = value; }
         }
 
         internal int LocalPort
@@ -255,6 +255,10 @@ namespace MonoTorrent.Client
 
                 port = (UInt16)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(byteOrderedData, i));
                 i += 2;
+
+                if (port == 0)
+                    continue;
+
                 sb.Append(':');
                 sb.Append(port);
 
@@ -265,7 +269,7 @@ namespace MonoTorrent.Client
             return list;
         }
 
-        internal static BEncodedList Encode(IEnumerable<Peer> peers)
+        public static BEncodedList Encode(IEnumerable<Peer> peers)
         {
             BEncodedList list = new BEncodedList();
             foreach (Peer p in peers)

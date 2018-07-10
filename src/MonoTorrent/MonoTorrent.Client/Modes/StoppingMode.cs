@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using MonoTorrent.Common;
 
@@ -8,6 +9,7 @@ namespace MonoTorrent.Client
     class StoppingMode : Mode
     {
         WaitHandleGroup handle = new WaitHandleGroup();
+        private Stopwatch _shutdownTime;
 
         public override TorrentState State
         {
@@ -17,13 +19,12 @@ namespace MonoTorrent.Client
         public StoppingMode(TorrentManager manager)
             : base(manager)
         {
+            _shutdownTime = Stopwatch.StartNew();
+
             CanAcceptConnections = false;
             ClientEngine engine = manager.Engine;
             if (manager.Mode is HashingMode)
                 handle.AddHandle(((HashingMode)manager.Mode).hashingWaitHandle, "Hashing");
-
-            if (manager.TrackerManager.CurrentTracker != null && manager.TrackerManager.CurrentTracker.Status == TrackerState.Ok)
-                handle.AddHandle(manager.TrackerManager.Announce(TorrentEvent.Stopped), "Announcing");
 
             foreach (PeerId id in manager.Peers.ConnectedPeers)
                 if (id.Connection != null)
@@ -50,6 +51,10 @@ namespace MonoTorrent.Client
             {
                 handle.Close();
                 Manager.Mode = new StoppedMode(Manager);
+                _shutdownTime.Stop();
+
+                if (_shutdownTime.Elapsed.TotalSeconds > 3)
+                    Logger.Log(null, "Stopping takes {0} s ", _shutdownTime.Elapsed.TotalSeconds);
             }
         }
     }

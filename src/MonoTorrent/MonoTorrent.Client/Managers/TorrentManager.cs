@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Net;
 using MonoTorrent.Common;
@@ -62,6 +63,17 @@ namespace MonoTorrent.Client
         public event EventHandler<TorrentStateChangedEventArgs> TorrentStateChanged;
 
         internal event EventHandler<PeerAddedEventArgs> OnPeerFound;
+
+        /// <summary>
+        /// Fired when the announce of the stop state is complete, the event tells that you can properly dispose the manager
+        /// </summary>
+        public event EventHandler StopAnnounced;
+
+        internal virtual void OnStopAnnounced()
+        {
+            var handler = StopAnnounced;
+            if (handler != null) handler(this, EventArgs.Empty);
+        }
 
         #endregion
 
@@ -118,7 +130,23 @@ namespace MonoTorrent.Client
 
         public bool Complete
         {
-            get { return this.bitfield.AllTrue; }
+            get
+            {
+                if (bitfield.AllTrue)
+                    return true;
+                
+                if (torrent != null && torrent.Files != null)
+                    foreach (var file in torrent.Files)
+                    {
+                        if (file.Priority == Priority.DoNotDownload)
+                            continue;
+
+                        if (bitfield.FirstFalse(file.StartPieceIndex, file.EndPieceIndex) != -1)
+                            return false;
+                    }
+
+                return true;
+            }
         }
 
         internal RateLimiterGroup DownloadLimiter
@@ -147,6 +175,7 @@ namespace MonoTorrent.Client
                 if (oldMode != null)
                     RaiseTorrentStateChanged(new TorrentStateChangedEventArgs(this, oldMode.State, mode.State));
                 mode.Tick(0);
+                Logger.Log(null, "Torrent {0} is in {1}", HasMetadata ? Torrent.Name : InfoHash.ToString(), mode.GetType().Name);
             }
         }
 
@@ -344,6 +373,18 @@ namespace MonoTorrent.Client
 
         #endregion
 
+        /// <summary>
+        /// Occurs when torrent manager receives metadata from the DHT
+        /// This event is not fired if torren is loaded from other source
+        /// </summary>
+        public event EventHandler MetadataReceived;
+
+        internal virtual void OnMetadataReceived()
+        {
+            var handler = MetadataReceived;
+            if (handler != null) handler(this, EventArgs.Empty);
+        }
+
         #region Constructors
 
         /// <summary>
@@ -373,7 +414,7 @@ namespace MonoTorrent.Client
             Check.BaseDirectory(baseDirectory);
 
             this.torrent = torrent;
-            this.infohash = torrent.infoHash;
+            this.infohash = torrent.InfoHash;
             this.settings = settings;
             this.webseeds = new List<String>();
             if (torrent.GetRightHttpSeeds != null)
@@ -446,7 +487,7 @@ namespace MonoTorrent.Client
 
             if (HasMetadata) {
                 foreach (TorrentFile file in torrent.Files)
-                    file.FullPath = Path.Combine (SavePath, file.Path);
+                    file.FullPath = Path.Combine(SavePath, file.Path != null && file.Path.Length > 0 && file.Path[0] == '\\' ? file.Path.Substring(1) : file.Path);
             }
         }
 
@@ -474,6 +515,13 @@ namespace MonoTorrent.Client
 
             ClientEngine.MainLoop.QueueWait((MainLoopTask)delegate {
                 this.pieceManager.ChangePicker(picker, bitfield, torrent.Files);
+            });
+        }
+
+        public void ChangeUnchoker(IUnchoker unchoker)
+        {
+            ClientEngine.MainLoop.QueueWait((MainLoopTask)delegate {
+                this.chokeUnchoker = unchoker;
             });
         }
 
@@ -640,8 +688,6 @@ namespace MonoTorrent.Client
 
                 if (TrackerManager.CurrentTracker != null)
                 {
-                    if (this.trackerManager.CurrentTracker.CanScrape)
-                        this.TrackerManager.Scrape();
                     this.trackerManager.Announce(TorrentEvent.Started); // Tell server we're starting
                 }
 
@@ -698,9 +744,22 @@ namespace MonoTorrent.Client
 #endif
 
         /// <summary>
-        /// Stops the TorrentManager
+        /// Stops the TorrentManager and waits until it will be stopped
         /// </summary>
         public void Stop()
+        {
+            BeginStop();
+
+            while (State != TorrentState.Stopped && State != TorrentState.Error)
+            {
+                Thread.Sleep(10);
+            }
+        }
+
+        /// <summary>
+        /// Stops the TorrentManager
+        /// </summary>
+        public void BeginStop()
         {
             if (State == TorrentState.Error)
             {
@@ -890,13 +949,24 @@ namespace MonoTorrent.Client
             if (State != TorrentState.Stopped)
                 throw new InvalidOperationException("Can only load FastResume when the torrent is stopped");
             if (InfoHash != data.Infohash || torrent.Pieces.Count != data.Bitfield.Length)
-                throw new ArgumentException("The fast resume data does not match this torrent", "fastResumeData");
+                throw new ArgumentException("The fast resume data does not match this torrent", "data");
 
             bitfield.From(data.Bitfield);
             for (int i = 0; i < torrent.Pieces.Count; i++)
                 RaisePieceHashed (new PieceHashedEventArgs (this, i, bitfield[i]));
 
             this.hashChecked = true;
+
+            if (data.Priorities != null)
+            {
+                if (data.Priorities.Length != torrent.Files.Length)
+                    throw new ArgumentException("The fast resume data does not match this torrent", "data");
+
+                for (var i = 0; i < data.Priorities.Length; i++)
+                {
+                    torrent.Files[i].Priority = data.Priorities[i];
+                }
+            }
         }
 
         public FastResume SaveFastResume()
@@ -904,7 +974,7 @@ namespace MonoTorrent.Client
             CheckMetadata();
             if (!HashChecked)
                 throw new InvalidOperationException ("Fast resume data cannot be created when the TorrentManager has not been hash checked");
-            return new FastResume(InfoHash, this.bitfield);
+            return new FastResume(InfoHash, this.bitfield, torrent.Files.Select(f => f.Priority));
         }
 
         void VerifyHashState ()

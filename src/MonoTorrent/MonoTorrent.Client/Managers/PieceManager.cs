@@ -48,7 +48,7 @@ namespace MonoTorrent.Client
         #region Old
         // For every 10 kB/sec upload a peer has, we request one extra piece above the standard amount him
         internal const int BonusRequestPerKb = 10;  
-        internal const int NormalRequestAmount = 2;
+        internal const int NormalRequestAmount = 6;
         internal const int MaxEndGameRequests = 2;
 
         public event EventHandler<BlockEventArgs> BlockReceived;
@@ -75,7 +75,7 @@ namespace MonoTorrent.Client
         PiecePicker picker;
         BitField unhashedPieces;
 
-        internal PiecePicker Picker
+        public PiecePicker Picker
         {
             get { return picker; }
         }
@@ -109,6 +109,8 @@ namespace MonoTorrent.Client
                     // If we haven't written all the pieces to disk, there's no point in hash checking
                     if (!piece.AllBlocksWritten)
                         return;
+
+                    Logger.Log(null, "Piece downloaded: {0}", piece.Index);
 
                     // Hashcheck the piece as we now have all the blocks.
                     id.Engine.DiskManager.BeginGetHash (id.TorrentManager, piece.Index, delegate (object o) {
@@ -201,7 +203,7 @@ namespace MonoTorrent.Client
                 return false;
 
             // If the peer is a seeder, then he is definately interesting
-            if ((id.Peer.IsSeeder = id.BitField.AllTrue))
+            if (id.Peer.IsSeeder == id.BitField.AllTrue)
                 return true;
 
             // Otherwise we need to do a full check
@@ -230,6 +232,48 @@ namespace MonoTorrent.Client
         internal int CurrentRequestCount()
         {
             return (int)ClientEngine.MainLoop.QueueWait((MainLoopJob) delegate { return Picker.CurrentRequestCount(); });
+        }
+
+        public T GetPicker<T>() where T: PiecePicker
+        {
+            T result;
+
+            if (CheckType(picker, out result))
+                return result;
+
+            var p = picker;
+            
+            while ((p = p.BasePicker) != null)
+            {
+                if (CheckType(p, out result))
+                    return result;
+            }
+
+            return null;
+        }
+
+        private bool CheckType<T>(PiecePicker picker, out T obj) where T : PiecePicker
+        {
+            obj = null;
+
+            if (picker is T)
+            {
+                obj = (T)picker;
+                return true;
+            }
+            
+            if (picker is EndGameSwitcher)
+            {
+                var switcher = (EndGameSwitcher)picker;
+
+                if (switcher.ActivePicker is T)
+                {
+                    obj = (T)switcher.ActivePicker;
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
