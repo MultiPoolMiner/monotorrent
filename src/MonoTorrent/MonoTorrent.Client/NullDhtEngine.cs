@@ -85,6 +85,11 @@ namespace MonoTorrent.Client
             return new byte[0];
         }
 
+        public int CountNodes()
+        {
+            return 0;
+        }
+
         public void Start()
         {
             
