@@ -1,10 +1,9 @@
-//
-// IListener.cs
+#if !DISABLE_NAT
 //
 // Authors:
 //   Alan McGovern alan.mcgovern@gmail.com
 //
-// Copyright (C) 2008 Alan McGovern
+// Copyright (C) 2006 Alan McGovern
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -26,25 +25,33 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Net.Sockets;
+using System.Globalization;
 using System.Net;
-using MonoTorrent.Common;
+using System.Net.Sockets;
 
-namespace MonoTorrent.Client
+namespace MonoTorrent.Nat
 {
-    public interface IListener
+    internal static class DiscoverDeviceMessage
     {
-        event EventHandler<EventArgs> StatusChanged;
+        /// <summary>
+        /// The message sent to discover all uPnP devices on the network
+        /// </summary>
+        /// <returns></returns>
+        public static string Encode(string serviceType, IPAddress address)
+        {
+            var fmtAddress = string.Format(
+                address.AddressFamily == AddressFamily.InterNetwork ? "{0}" : "[{0}]",
+                address);
 
-        IPEndPoint Endpoint { get; }
-        ProtocolType Protocol { get; }
-        ListenerStatus Status { get; }
+            string s = "M-SEARCH * HTTP/1.1\r\n"
+                        + "HOST: " + fmtAddress + ":1900\r\n"
+                        + "MAN: \"ssdp:discover\"\r\n"
+                        + "MX: 3\r\n"
+                        + "ST: urn:schemas-upnp-org:service:{0}\r\n\r\n";
+            //+ "ST:upnp:rootdevice\r\n\r\n";
 
-        void ChangeEndpoint(IPEndPoint port);
-        void Start();
-        void Stop();
+            return string.Format(CultureInfo.InvariantCulture, s, serviceType);
+        }
     }
 }
+#endif

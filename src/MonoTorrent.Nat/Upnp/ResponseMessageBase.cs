@@ -1,10 +1,9 @@
-//
-// IListener.cs
+#if !DISABLE_NAT
 //
 // Authors:
-//   Alan McGovern alan.mcgovern@gmail.com
+//   Lucas Ontivero lucas.ontivero@gmail.com
 //
-// Copyright (C) 2008 Alan McGovern
+// Copyright (C) 2014 Lucas Ontivero
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -27,24 +26,35 @@
 //
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Net.Sockets;
-using System.Net;
-using MonoTorrent.Common;
+using System.Xml;
 
-namespace MonoTorrent.Client
+namespace MonoTorrent.Nat
 {
-    public interface IListener
+    internal abstract class ResponseMessageBase
     {
-        event EventHandler<EventArgs> StatusChanged;
+        private readonly XmlDocument _document;
+        protected string ServiceType;
+        private readonly string _typeName;
 
-        IPEndPoint Endpoint { get; }
-        ProtocolType Protocol { get; }
-        ListenerStatus Status { get; }
+        protected ResponseMessageBase(XmlDocument response, string serviceType, string typeName)
+        {
+            _document = response;
+            ServiceType = serviceType;
+            _typeName = typeName;
+        }
 
-        void ChangeEndpoint(IPEndPoint port);
-        void Start();
-        void Stop();
+        protected XmlNode GetNode()
+        {
+            var nsm = new XmlNamespaceManager(_document.NameTable);
+            nsm.AddNamespace("responseNs", ServiceType);
+
+            string typeName = _typeName;
+            string messageName = typeName.Substring(0, typeName.Length - "Message".Length);
+            XmlNode node = _document.SelectSingleNode("//responseNs:" + messageName, nsm);
+            if (node == null) throw new InvalidOperationException("The response is invalid: " + messageName);
+
+            return node;
+        }
     }
 }
+#endif

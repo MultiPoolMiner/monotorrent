@@ -1,10 +1,9 @@
-//
-// IListener.cs
+#if !DISABLE_NAT
 //
 // Authors:
-//   Alan McGovern alan.mcgovern@gmail.com
+//   Lucas Ontivero lucasontivero@gmail.com 
 //
-// Copyright (C) 2008 Alan McGovern
+// Copyright (C) 2014 Lucas Ontivero
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -25,26 +24,16 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
-
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Net.Sockets;
-using System.Net;
-using MonoTorrent.Common;
-
-namespace MonoTorrent.Client
+namespace MonoTorrent.Nat
 {
-    public interface IListener
+    sealed class Finalizer 
     {
-        event EventHandler<EventArgs> StatusChanged;
-
-        IPEndPoint Endpoint { get; }
-        ProtocolType Protocol { get; }
-        ListenerStatus Status { get; }
-
-        void ChangeEndpoint(IPEndPoint port);
-        void Start();
-        void Stop();
+        ~Finalizer() 
+        {
+            NatDiscoverer.TraceSource.LogInfo("Closing ports opened in this session");
+            NatDiscoverer.RenewTimer.Dispose();
+            NatDiscoverer.ReleaseSessionMappings();
+        }
     }
 }
+#endif

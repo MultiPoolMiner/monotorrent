@@ -1,10 +1,11 @@
-//
-// IListener.cs
+#if !DISABLE_NAT
 //
 // Authors:
-//   Alan McGovern alan.mcgovern@gmail.com
+//   Alan McGovern  alan.mcgovern@gmail.com
+//   Lucas Ontivero lucas.ontivero@gmail.com
 //
-// Copyright (C) 2008 Alan McGovern
+// Copyright (C) 2006 Alan McGovern
+// Copyright (C) 2014 Lucas Ontivero
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -26,25 +27,24 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Net.Sockets;
 using System.Net;
-using MonoTorrent.Common;
+using System.Xml;
 
-namespace MonoTorrent.Client
+namespace MonoTorrent.Nat
 {
-    public interface IListener
+    internal class GetExternalIPAddressResponseMessage : ResponseMessageBase
     {
-        event EventHandler<EventArgs> StatusChanged;
+        public GetExternalIPAddressResponseMessage(XmlDocument response, string serviceType)
+            : base(response, serviceType, "GetExternalIPAddressResponseMessage")
+        {
+            string ip = GetNode().GetXmlElementText("NewExternalIPAddress");
 
-        IPEndPoint Endpoint { get; }
-        ProtocolType Protocol { get; }
-        ListenerStatus Status { get; }
+            IPAddress ipAddr;
+            if (IPAddress.TryParse(ip, out ipAddr))
+                ExternalIPAddress = ipAddr;
+        }
 
-        void ChangeEndpoint(IPEndPoint port);
-        void Start();
-        void Stop();
+        public IPAddress ExternalIPAddress { get; private set; }
     }
 }
+#endif

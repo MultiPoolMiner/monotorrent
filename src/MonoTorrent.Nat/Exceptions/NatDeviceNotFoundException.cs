@@ -1,10 +1,9 @@
-//
-// IListener.cs
+#if !DISABLE_NAT
 //
 // Authors:
-//   Alan McGovern alan.mcgovern@gmail.com
+//   Lucas Ontivero lucas.ontivero@gmail.com
 //
-// Copyright (C) 2008 Alan McGovern
+// Copyright (C) 2014 Lucas Ontivero
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -27,24 +26,46 @@
 //
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Net.Sockets;
-using System.Net;
-using MonoTorrent.Common;
+using System.Runtime.Serialization;
 
-namespace MonoTorrent.Client
+namespace MonoTorrent.Nat
 {
-    public interface IListener
+    /// <summary>
+    /// 
+    /// </summary>
+    [Serializable]
+    public class NatDeviceNotFoundException : Exception
     {
-        event EventHandler<EventArgs> StatusChanged;
+        /// <summary>
+        /// 
+        /// </summary>
+        public NatDeviceNotFoundException()
+        {
+        }
 
-        IPEndPoint Endpoint { get; }
-        ProtocolType Protocol { get; }
-        ListenerStatus Status { get; }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="message"></param>
+        public NatDeviceNotFoundException(string message)
+            : base(message)
+        {
+        }
 
-        void ChangeEndpoint(IPEndPoint port);
-        void Start();
-        void Stop();
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="innerException"></param>
+        public NatDeviceNotFoundException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
+
+        protected NatDeviceNotFoundException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
+        {
+        }
     }
 }
+#endif
